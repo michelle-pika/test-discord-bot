@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 // const supabase = createClient(supabaseUrl, supabaseKey);
 const discordBotToken=process.env.DISCORD_BOT_TOKEN
 const serverId = process.env.DISCORD_SERVER_ID;
+const CHANNEL_ID = 1197870397807415336
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,8 +28,8 @@ interface Role {
 const planToRoleMap = {
     basic: "Basic",
     standard: "Standard",
-    unlimited: "Unlimited",
-    ultimate: "Unlimited",
+    unlimited: "Pro",
+    ultimate: "Pro",
     discord: "Pro", 
   };
 
@@ -60,8 +61,8 @@ const planToRoleMap = {
         const removeResponse = await fetch(`${memberEndpoint}/roles/${removeRoleId}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bot ${discordBotToken}`,
-        },
+            Authorization: `Bot ${discordBotToken}`,
+          },
       });
       console.log(`Remove role response: ${await removeResponse.text()}`);
     }
@@ -136,20 +137,49 @@ return roleName ? planToRoleMap[roleName] : null;
 
     if (addRoleId || removeRoleId) {
         await updateDiscordRoles(discordUserId, addRoleId, removeRoleId);
-    }
-  
+        const confirmationMessage = 'Your role has been changed successfully!';
+        await sendConfirmationMessage(confirmationMessage);
+      }
     return true;
   }
+
+  async function sendConfirmationMessage(messageContent: string) {
+    const apiUrl = `https://discord.com/api/v10/channels/${CHANNEL_ID}/messages`;
+    const headers = {
+      'Authorization': `Bot ${discordBotToken}`,
+    //   'Content-Type': 'application/json',
+    };
+    const body = JSON.stringify({
+      content: messageContent,
+    });
+  
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body,
+      });
+  
+      if (response.ok) {
+        console.log('Message sent successfully!');
+      } else {
+        console.error(`Failed to send message: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  }
+  
 
 // Next.js API endpoint
 export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     const expectedAuthToken = process.env.YOUR_AUTH_SECRET;
 
-    if (!authHeader || authHeader !== `Bearer ${expectedAuthToken}`) {
-        console.error('Unauthorized request');
-        return new Response('Unauthorized', { status: 401 });
-    }
+    // if (!authHeader || authHeader !== `Bearer ${expectedAuthToken}`) {
+    //     console.error('Unauthorized request');
+    //     return new Response('Unauthorized', { status: 401 });
+    // }
 
     const payload = await request.json();
     const { old_record, record } = payload;
@@ -166,17 +196,3 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
 }
-
-// export async function POST(request: NextRequest) {
-//     // Implements the discord bot script 
-//     console.log(request.formData);
-    
-
-//     // get discord ID using user ID in user table (auth schema)
-
-//     // put my discord script here 
-
-
-//     return NextResponse.json({success: true}); // get the user ID, get the subscription change
-
-// }
