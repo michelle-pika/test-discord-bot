@@ -1,23 +1,13 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# How it Works
+- Created a webhook that checks for changes in the subscriptions table
+- If a change is detected (e.g. user updates their subscription), it calls an API to the discord bot which then - - updates the new Discord role to the user
+Works only if the user connected their Discord account to their Pika account
 
-## Getting Started
+https://github.com/tinloof/pika/assets/155480239/407741e2-88b9-4eb0-ad22-35ce85235861
 
-First, run the development server:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-### Set Up
-1. Add these to your `.env.local`
+# Set Up
+Add these to your `.env.local`
 ```
 DISCORD_BOT_TOKEN={see next section}
 DISCORD_SERVER_ID={right click on server in discord --> click "Copy Server ID"}
@@ -28,20 +18,29 @@ DISCORD_UNLIMITED_ROLE_NAME=Unlimited
 DISCORD_PRO_ROLE_NAME=Pro
 ```
 
-## How to get the Discord Bot Token
+## How to get the Discord Bot Token and set Bot Permissions
+1. Go to the Discord Developer Portal
+2. Click on "New Application" button
+3. Go to "Bot" section and set Bot's name and icon 
+4. Under "TOKEN" click "Copy" or "Reset" to get the bot token. This is the `DISCORD_BOT_TOKEN` you will use.
+5. Go to "OAuth2" section. Under "SCOPES", select "bot."
+6. In "BOT PERMISSIONS" section, select the permissions your bot needs to operate as intended. It is best practice to give the bot the least privileges. I only checked 1) "Manage Roles" and 2) "Read Messages/View Channels."
+7. Copy the Generated URL at the bottom and past it into your web browser. 
+8. Select the server you want to invite the bot to and click "Authorize."
+9. Ensure that the bot has the necessary permissions in the Discover server by right clicking the server --> "Server Settings" --> "Roles" --> select the bot's role --> "Permissions" --> Make sure that 1) "Manage Roles" is checked off and 2) [This is outside the "Permissions" section, now in the overall "Roles" section] The bot's role is positioned higher than the other roles (drag and drop) 
 
-### To Do
+# To Do
 1. The Pika team will probably change the role names, which would just be editing the last 4 variables in the `.env.local` file. Check with the Pika team before deploying to Prod.
-2. Update the web hook in supabase to the correct URL
+10. Update the web hook in supabase to the correct URL
 
-### Testing 
+# Testing 
 1. Created a new Next.js test project
 2. Put the API endpoint in `app/api/discord-bot`
-3. Deployed to Vercel
-4. Changed the web hook to use the URL of the new test project
-5. Test with Postman (see next section)
-6. Test with Supabase updates (see next section)
-7. Once working, copy it back to the Pika codebase
+11. Deployed to Vercel
+12. Changed the web hook to use the URL of the new test project
+13. Test with Postman (see next section)
+14. Test with Supabase updates (see next section)
+15. Once working, copy it back to the Pika codebase
 
 ## Test with Postman
 1. Run `npm run dev`

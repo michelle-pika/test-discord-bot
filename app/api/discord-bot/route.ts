@@ -26,7 +26,6 @@ const planToRoleMap = {
     standard: process.env.DISCORD_STANDARD_ROLE_NAME,
     unlimited: process.env.DISCORD_UNLIMITED_ROLE_NAME,
     ultimate: process.env.DISCORD_PRO_ROLE_NAME,
-    discord: process.env.DISCORD_PRO_ROLE_NAME,
 };
 
 async function getDiscordRoleId(guildId: string, roleName: string) {
@@ -98,7 +97,31 @@ async function changeDiscordRoles(userId: string, oldLookupKey: string, newLooku
     return true;
 }
 
+// async function isBotLoggedIn() {
+//     const response = await fetch('https://discord.com/api/users/@me', {
+//         headers: {
+//             Authorization: `Bot ${discordBotToken}`
+//         }
+//     });
+
+//     if (response.ok) {
+//         const botUser = await response.json();
+//         console.log('Bot is logged in as:', botUser.username);
+//         return true;
+//     } else {
+//         console.error('Failed to log in bot:', response.statusText);
+//         return false;
+//     }
+// }
+
+
 export async function POST(request: NextRequest) {
+    // const loggedIn = await isBotLoggedIn();
+    // if (!loggedIn) {
+    //     console.error('Bot is not logged in.');
+    //     return new Response('Bot is not logged in.', { status: 401 });
+    // }
+
     const authHeader = request.headers.get('Authentication');
     const expectedAuthToken = process.env.DISCORD_AUTH_SECRET;
 
