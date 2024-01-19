@@ -99,12 +99,12 @@ async function changeDiscordRoles(userId: string, oldLookupKey: string, newLooku
 }
 
 export async function POST(request: NextRequest) {
-    const authHeader = request.headers.get('authorization');
+    const authHeader = request.headers.get('Authentication');
     const expectedAuthToken = process.env.DISCORD_AUTH_SECRET;
 
     if (!authHeader || authHeader !== `Bearer ${expectedAuthToken}`) {
-        console.error('Unauthorized request');
-        return new Response('Unauthorized', { status: 401 });
+        console.error('Unauthenticated request');
+        return new Response('Unathenticated', { status: 401 });
     }
 
     const payload = await request.json();
