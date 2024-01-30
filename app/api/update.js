@@ -53,58 +53,36 @@ function getDiscordRoleIdFromCache(roleName) {
     // Use the cached roles
     return discordRolesCache[roleName] || null;
 }
+
 async function fetchWithRateLimit(url, options, retries = 5) {
     try {
-        await limit(async () => {
+        return await limit(async () => { // Ensure the result of the limit call is returned
             const response = await fetch(url, options);
-
             if (response.status === 429) {
-                const retryAfter = response.headers.get('Retry-After') || 1; // Default to 1 second if not provided
+                const retryAfter = response.headers.get('Retry-After') || 1;
                 console.log(`Rate limited. Retrying after ${retryAfter} seconds.`);
                 await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-                return fetchWithRateLimit(url, options, retries - 1);
+                return fetchWithRateLimit(url, options, retries - 1); // Ensure this result is returned
             }
-
             return response;
         });
     } catch (error) {
         if (retries > 0) {
             console.log(`Request failed. Retrying after 5 seconds...`);
             await new Promise(resolve => setTimeout(resolve, 5000));
-            return fetchWithRateLimit(url, options, retries - 1);
+            return fetchWithRateLimit(url, options, retries - 1); // Ensure this result is returned
         } else {
-            throw new Error('Max retries reached. Failed to fetch data:', error);
+            throw new Error(`Max retries reached. Failed to fetch data: ${error}`);
         }
     }
 }
-
-// async function fetchWithRateLimit(url, options, retries = 5) {
-//     try {
-//         const response = await fetch(url, options);
-//         if (response.status === 429) { // 429 is the HTTP status code for Too Many Requests
-//             const data = await response.json();
-//             console.log(`Rate limited. Retrying after ${data.retry_after} seconds.`);
-//             await new Promise(resolve => setTimeout(resolve, data.retry_after * 1000)); // Wait for retry_after seconds
-//             return fetchWithRateLimit(url, options, retries - 1); // Retry the request
-//         }
-//         return response;
-//     } catch (error) {
-//         if (retries > 0) {
-//             console.log(`Request failed. Retrying after 5 seconds...`);
-//             await new Promise(resolve => setTimeout(resolve, 5000)); // Wait for 5 seconds before retrying
-//             return fetchWithRateLimit(url, options, retries - 1); // Retry the request
-//         } else {
-//             throw new Error('Max retries reached. Failed to fetch data:', error);
-//         }
-//     }
-// }
 
 async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
     const memberEndpoint = `https://discord.com/api/guilds/${serverId}/members/${discordUserId}`;
     try {
         console.log(`Checking membership for user ID: ${discordUserId}`);
         // Check if the user is part of the Discord server
-        const memberResponse = await fetch(memberEndpoint, {
+        const memberResponse = await fetchWithRateLimit(memberEndpoint, {
             headers: {
                 Authorization: `Bot ${discordBotToken}`,
             },
@@ -123,17 +101,18 @@ async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
         }
 
         // If the user is part of the server, proceed to update roles
-        if (removeRoleId) {
-            await fetch(`${memberEndpoint}/roles/${removeRoleId}`, {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Bot ${discordBotToken}`,
-                },
-            });
-        }
+        // We can assume there is no role to begin with
+        // if (removeRoleId) {
+        //     await fetchWithRateLimit(`${memberEndpoint}/roles/${removeRoleId}`, {
+        //         method: 'DELETE',
+        //         headers: {
+        //             Authorization: `Bot ${discordBotToken}`,
+        //         },
+        //     });
+        // }
 
         if (addRoleId) {
-            await fetch(`${memberEndpoint}/roles/${addRoleId}`, {
+            await fetchWithRateLimit(`${memberEndpoint}/roles/${addRoleId}`, {
                 method: 'PUT',
                 headers: {
                     Authorization: `Bot ${discordBotToken}`,
@@ -204,29 +183,13 @@ async function getAllSubscriptions() {
 async function processSubscriptions() {
     const subscriptions = await getAllSubscriptions();
 
-    // const promises = subscriptions.map(subscription =>
-    //     limit(() => {
-    //         const userId = subscription.user_id;
-    //         const stripeLookupKey = subscription.stripe_lookup_key || 'basic';
-    //         return changeDiscordRoles(userId, stripeLookupKey, stripeLookupKey);
-    //     })
-    // );
-
-    // // Wait for all the promises to resolve
-    // const results = await Promise.all(promises);
-    // results.forEach((success, index) => {
-    //     if (!success) {
-    //         console.error(`Failed to update Discord roles for user ID: ${subscriptions[index].user_id}`);
-    //     }
-    // });
-
+    // thread pool? or workers for this?
     for (const subscription of subscriptions) {
         const userId = subscription.user_id;
      
         const stripeLookupKey = subscription.stripe_lookup_key || 'basic';
 
         // Assuming the old stripe_lookup_key is null for this operation
-        // thread pool? 
         const success = await changeDiscordRoles(userId, stripeLookupKey, stripeLookupKey);
 
         if (!success) {
