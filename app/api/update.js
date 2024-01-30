@@ -87,10 +87,10 @@ async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
                 Authorization: `Bot ${discordBotToken}`,
             },
         });
-        console.log(`Response status: ${memberResponse.status}`);
+        // console.log(`Response status: ${memberResponse.status}`);
 
         const responseBody = await memberResponse.json();
-        console.log(`Response body: `, responseBody);
+        // console.log(`Response body: `, responseBody);
 
         // If the user is not part of the server
         if (!memberResponse.ok) {
@@ -149,54 +149,74 @@ async function changeDiscordRoles(userId, oldLookupKey, newLookupKey) {
         return false;
     }
     function findRoleName(lookupKey) {
-        const roleName = Object.keys(planToRoleMap).find((key) => lookupKey.includes(key));
-        return roleName ? planToRoleMap[roleName] : null;
+        const planType = lookupKey.split('_')[0];
+        return planToRoleMap[planType] || null;
     }
+    
     const oldRoleName = oldLookupKey ? findRoleName(oldLookupKey) : null;
     const newRoleName = newLookupKey ? findRoleName(newLookupKey) : null;
 
     const removeRoleId = oldRoleName ? getDiscordRoleIdFromCache(oldRoleName) : null;
     const addRoleId = newRoleName ? getDiscordRoleIdFromCache(newRoleName) : null;
-    console.log('remove role id: ', removeRoleId);
-    console.log('add role id: ', addRoleId)
 
     await updateDiscordRoles(discordUserId, addRoleId, removeRoleId);
     return true;
 }
 
-// Function to retrieve all subscription records from Supabase
-async function getAllSubscriptions() {
-    const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*');
+async function getSubscriptionsByType(type) {
+    const stripeLookupKeys = {
+        ultimate: ['ultimate_monthly', 'ultimate_yearly'],
+        unlimited: ['unlimited_monthly', 'unlimited_yearly'],
+        standard: ['standard_monthly', 'standard_yearly']
+    };
 
-    if (error) {
-        console.error('Error fetching subscriptions:', error);
-        throw error;
+    const keysForType = stripeLookupKeys[type];
+    if (!keysForType) {
+        console.error(`Invalid subscription type: ${type}`);
+        return [];
     }
 
+    const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .in('stripe_lookup_key', keysForType);
+
+    if (error) {
+        console.error(`Error fetching ${type} subscriptions:`, error);
+        throw error;
+    }
 
     return data;
 }
 
-// Function to process each subscription record
+
 async function processSubscriptions() {
-    const subscriptions = await getAllSubscriptions();
+    // Helper function 
+    async function processSubscriptionList(subscriptions) {
+        for (const subscription of subscriptions) {
+            const userId = subscription.user_id;
+            const stripeLookupKey = subscription.stripe_lookup_key;
 
-    // thread pool? or workers for this?
-    for (const subscription of subscriptions) {
-        const userId = subscription.user_id;
-     
-        const stripeLookupKey = subscription.stripe_lookup_key || 'basic';
+            // Assuming the old stripe_lookup_key is null for this operation
+            const success = await changeDiscordRoles(userId, stripeLookupKey, stripeLookupKey);
 
-        // Assuming the old stripe_lookup_key is null for this operation
-        const success = await changeDiscordRoles(userId, stripeLookupKey, stripeLookupKey);
-
-        if (!success) {
-            console.error(`Failed to update Discord roles for user ID: ${userId}`);
+            if (!success) {
+                console.error(`Failed to update Discord roles for user ID: ${userId}`);
+            }
         }
     }
+
+    // Process each type of subscription
+    const ultimateSubscriptions = await getSubscriptionsByType('ultimate');
+    await processSubscriptionList(ultimateSubscriptions);
+
+    const unlimitedSubscriptions = await getSubscriptionsByType('unlimited');
+    await processSubscriptionList(unlimitedSubscriptions);
+
+    const standardSubscriptions = await getSubscriptionsByType('standard');
+    await processSubscriptionList(standardSubscriptions);
 }
+
 
 // Main function to run the script
 async function main() {
