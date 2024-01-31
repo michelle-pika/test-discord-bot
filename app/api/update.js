@@ -49,7 +49,6 @@ async function cacheDiscordRoles() {
 }
 
 function getDiscordRoleIdFromCache(roleName) {
-    // Use the cached roles
     return discordRolesCache[roleName] || null;
 }
 
@@ -79,14 +78,12 @@ async function fetchWithRateLimit(url, options, retries = 5) {
 async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
     const memberEndpoint = `https://discord.com/api/guilds/${serverId}/members/${discordUserId}`;
     try {
-        // console.log(`Checking membership for user ID: ${discordUserId}`);
         // Check if the user is part of the Discord server
         const memberResponse = await fetchWithRateLimit(memberEndpoint, {
             headers: {
                 Authorization: `Bot ${discordBotToken}`,
             },
         });
-        // console.log(`Response status: ${memberResponse.status}`);
 
         const responseBody = await memberResponse.json();
         if (discordUserId === "101892171787124548898") {
@@ -95,13 +92,9 @@ async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
 
         // If the user is not part of the server
         if (!memberResponse.ok) {
-            // console.log(`NOT a part of the server.`);
             return;
-        } else {
-            console.log(`User ID: ${discordUserId} is a part of the server.`);
-        }
-
-        console.log(`Updating Discord roles for user ID: ${discordUserId}, Adding Role ID: ${addRoleId}, Removing Role ID: ${removeRoleId}`);
+        } 
+        // No need to remove roles in the update script (everyone has no roles to begin with)
         if (addRoleId) {
             await fetchWithRateLimit(`${memberEndpoint}/roles/${addRoleId}`, {
                 method: 'PUT',
@@ -113,29 +106,6 @@ async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
     } catch (error) {
         console.error(`An error occurred while updating roles for user ID: ${discordUserId}:`, error);
     }
-}
-
-async function getDiscordUserId(userId) {
-    // Query the 'identities' table in the 'auth' schema for the row that matches the given userId and provider
-    const { data, error } = await supabase
-        .from('auth.identities') // Assuming 'identities' table is within the 'auth' schema
-        .select('identity_data') // Selecting only the 'identity_data' column
-        .eq('id', userId) // Matching the 'id' column to the provided userId
-        .eq('provider', 'discord') // Ensuring the provider is 'discord'
-        .single(); // Assuming there's only one identity per user per provider, or you could handle multiple
-
-    if (error) {
-        console.error('Failed to fetch Discord user ID:', error);
-        throw error; // Or handle the error as appropriate for your application
-    }
-
-    if (data && data.identity_data) {
-        // Parse the 'identity_data' JSON to access the 'provider_id'
-        const identityData = JSON.parse(data.identity_data);
-        return identityData.provider_id || null;
-    }
-
-    return null; // Return null if no matching identity or 'provider_id' is found
 }
 
 async function changeDiscordRoles(userId, oldLookupKey, newLookupKey) {
@@ -151,12 +121,9 @@ async function changeDiscordRoles(userId, oldLookupKey, newLookupKey) {
         throw error;
     }
 
-    // data.user?.identities?.find((i) => i.provider === 'discord')?.id
-    // const discordUserId = data.user?.user_metadata?.provider_id;
-    // const discordUserId = await getDiscordUserId(userId);
     const discordUserId = data.user?.identities?.find((i) => i.provider === 'discord')?.id
     if (!discordUserId) {
-        return true; // Return true as it's not an error situation
+        return true; 
     }
 
     if (!serverId) {
@@ -173,12 +140,6 @@ async function changeDiscordRoles(userId, oldLookupKey, newLookupKey) {
 
     const removeRoleId = oldRoleName ? getDiscordRoleIdFromCache(oldRoleName) : null;
     const addRoleId = newRoleName ? getDiscordRoleIdFromCache(newRoleName) : null;
-    if (userId === "f57d9061-0a95-4d19-8e25-e6d6573d87c4") {
-        console.log("DATA: ", data)
-        console.log("DISCORD USER ID: ", discordUserId)
-        console.log("REMOVE ROLD: ", oldRoleName)
-        console.log("ADD ROLE: ", newRoleName)
-    }
     await updateDiscordRoles(discordUserId, addRoleId, removeRoleId);
     return true;
 }
@@ -213,16 +174,15 @@ async function getSubscriptionsByType(type) {
 async function processSubscriptions() {
     let totalUsersProcessed = 0; 
 
-    // Helper function 
-    async function processSubscriptionList(subscriptions, type) { // Added 'type' parameter for logging
+    async function processSubscriptionList(subscriptions, type) { 
         console.log(`NOW PROCESSING ${type} subscriptions...`);
         for (const subscription of subscriptions) {
             const userId = subscription.user_id;
             console.log("User Id: ", userId)
             const stripeLookupKey = subscription.stripe_lookup_key;
-            // Assuming the old stripe_lookup_key is null for this operation
+
             totalUsersProcessed++;
-            const success = await changeDiscordRoles(userId, stripeLookupKey, stripeLookupKey);
+            const success = await changeDiscordRoles(userId, stripeLookupKey, stripeLookupKey); // Passing same stripeLookupKey because we aren't removing anything
 
             if (!success) {
                 console.error(`Failed to update Discord roles for user ID: ${userId}`);
@@ -267,18 +227,17 @@ async function fetchAllMembers(afterId = '0', limit = 1000, allMembers = []) {
     return allMembers;
 }
 
-async function listAllMembers() {
-    try {
-        const members = await fetchAllMembers();
-        console.log(`Total Members: ${members.length}`);
-        members.forEach(member => {
-            console.log(`ID: ${member.user.id}, Username: ${member.user.username}, Roles: ${member.roles.join(', ')}`);
-        });
-    } catch (error) {
-        console.error(`An error occurred while listing members:`, error);
-    }
-}
-
+// async function listAllMembers() {
+//     try {
+//         const members = await fetchAllMembers();
+//         console.log(`Total Members: ${members.length}`);
+//         members.forEach(member => {
+//             console.log(`ID: ${member.user.id}, Username: ${member.user.username}, Roles: ${member.roles.join(', ')}`);
+//         });
+//     } catch (error) {
+//         console.error(`An error occurred while listing members:`, error);
+//     }
+// }
 
 
 // Main function to run the script
@@ -287,8 +246,7 @@ async function main() {
 
     try {
         await cacheDiscordRoles();
-        // await listAllMembers();
-        // exit(0)
+        // await listAllMembers(); for debugging
         await processSubscriptions();
         console.log('All subscriptions have been processed.');
     } catch (error) {
