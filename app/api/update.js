@@ -86,9 +86,6 @@ async function updateDiscordRoles(discordUserId, addRoleId, removeRoleId) {
         });
 
         const responseBody = await memberResponse.json();
-        if (discordUserId === "101892171787124548898") {
-            console.log(`Response body: `, responseBody);
-        }
 
         // If the user is not part of the server
         if (!memberResponse.ok) {
