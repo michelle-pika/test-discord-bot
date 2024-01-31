@@ -203,30 +203,6 @@ async function processSubscriptions() {
     console.log(`Total number of users processed: ${totalUsersProcessed}`);
 }
 
-async function fetchAllMembers(afterId = '0', limit = 1000, allMembers = []) {
-    const membersEndpoint = `https://discord.com/api/guilds/${serverId}/members?after=${afterId}&limit=${limit}`;
-    const membersResponse = await fetchWithRateLimit(membersEndpoint, {
-        headers: {
-            Authorization: `Bot ${discordBotToken}`,
-        },
-    });
-
-    if (!membersResponse.ok) {
-        throw new Error(`Failed to fetch members: ${membersResponse.statusText}`);
-    }
-
-    const members = await membersResponse.json();
-    allMembers.push(...members);
-
-    // If the number of members returned is equal to the limit, there might be more members to fetch
-    if (members.length === limit) {
-        const lastMemberId = members[members.length - 1].user.id;
-        return fetchAllMembers(lastMemberId, limit, allMembers);
-    }
-
-    return allMembers;
-}
-
 // async function listAllMembers() {
 //     try {
 //         const members = await fetchAllMembers();
